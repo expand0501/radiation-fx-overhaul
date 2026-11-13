@@ -10,7 +10,7 @@ Shipped readme: `src/readme.md` (all features, MCM options, compatibility).
 - `src/gamedata/configs/text/{eng,rus}/ui_mcm_rad_geiger_overhaul.xml`: strings (rus = Windows-1251).
 
 ## Version
-The version is part of the zip name ("Radiation FX Overhaul by Expand 2.1.0"). It appears in: `mod.json`,
+The version is part of the zip name (`Radiation_FX_Overhaul_by_Expand_<version>.zip`). It appears in: `mod.json`,
 `src/readme.md` title, header line of `zzz_rad_geiger_overhaul.script`.
 
 ## Decisions (keep)
