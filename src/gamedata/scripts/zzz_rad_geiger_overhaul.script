@@ -1,0 +1,571 @@
+--------------------------------------------------------------------------------
+-- Radiation FX Overhaul by Expand  v2.1.1  (for G.A.M.M.A.)
+--
+-- Standalone, no other radiation mod required:
+-- 1. Geiger ticks only with a charged geiger counter anywhere in the inventory.
+--    Replaces the vanilla ticks in actor_effects.Update_Rad (does the job of
+--    "No geiger sound in my head" when there is no charged geiger).
+-- 2. No radiation grain / noise screen effect (vanilla radiation.ppe, id 2020,
+--    and radioactive zone post-process via DLTX). MCM "Film grain" (off by
+--    default) brings radiation.ppe back, scaled by own dose and radiation fields.
+-- 3. SidHUD radiation bar (G.A.M.M.A. Minimalist HUD) shows 0 without a
+--    charged geiger counter.
+-- 4. Inventory radiation tooltip (UI Rework): exact mSv dose removed always,
+--    or shown as "???" only without a charged geiger counter (MCM).
+-- 5. HUD radiation status icon (MCM): hidden / shown with mSv only when a
+--    charged geiger is carried (G_FLAT's Msv Above Radiation Icon) / shown
+--    without mSv / shown with mSv only with a charged geiger, hidden otherwise.
+--
+-- 6. Geiger sound sources (MCM): internal / external radiation, detector slot
+--    only. Optional DAR Dosimeter Enhanced integration: environment mode =
+--    environment clicks, contamination mode = body clicks, self-scan mode =
+--    environment clicks (DAR plays body clicks during the scan). The DAR
+--    mode is saved with the game.
+--
+-- 7. Geiger clicks from other scripts played through utils_obj.play_sound
+--    (GAMMA's "Geiger panic while gaining rads", Anti-lag's copy of it) count
+--    as external radiation clicks: charged geiger required, detector slot
+--    setting and external / DAR environment mode respected.
+--
+-- Optional compatibility (no dependency): DAR Dosimeter Enhanced, Radiation_Overhaul - Silent
+-- Radiation, G_FLAT's Msv Above Radiation Icon, Grain RGB & Psi Color Effects
+-- Remover, G.A.M.M.A. Minimalist HUD, UI Rework G.A.M.M.A. Style.
+--------------------------------------------------------------------------------
+
+local MOD = "zzz_rad_geiger_overhaul"
+local MCM_ID = "rad_geiger_overhaul"
+
+-- defaults (used without MCM)
+local defaults = {
+	hud_icon_mode = 1,   -- 0 = hidden, 1 = shown, mSv only with charged geiger, 2 = shown, never mSv,
+	                     -- 3 = only with charged geiger (icon + mSv), hidden otherwise,
+	                     -- 4 = only with charged geiger, never mSv
+	snd_internal  = true,  -- geiger ticks for the player's own irradiation
+	snd_external  = true,  -- geiger ticks for surrounding (environment) radiation
+	snd_slot_only = false, -- ticks only when the charged geiger is in the detector slot
+	dar_integration = true, -- DAR Dosimeter Enhanced: its dosimeter mode decides internal/external
+	film_grain    = false, -- radiation film grain (radiation.ppe) from own dose and radiation fields
+	tooltip_mode  = 1     -- inventory tooltip dose: 0 = never shown, 1 = real value only with charged geiger ("???" without)
+}
+
+local hud_icon_mode = defaults.hud_icon_mode
+local snd_internal = defaults.snd_internal
+local snd_external = defaults.snd_external
+local snd_slot_only = defaults.snd_slot_only
+local dar_integration = defaults.dar_integration
+local film_grain = defaults.film_grain
+local tooltip_mode = defaults.tooltip_mode
+
+local ENV_READING_SCALE = 2500 -- level.get_env_rads() -> dosimeter reading (same as DAR / Wearable Devices)
+local ENV_READING_MAX   = 200  -- reading at which ticks are at full rate
+local ENV_MIN_CHANCE    = 0.15 -- tick chance at the edge of a radiation field
+
+-- cached globals (upvalues instead of global/table lookups in hot paths)
+local mmax, mmin, mrandom = math.max, math.min, math.random
+local time_global = time_global
+local level_get_env_rads = level.get_env_rads or function() return 0 end
+local level_add_ppe = level.add_pp_effector
+local level_remove_ppe = level.remove_pp_effector
+local level_set_ppe_factor = level.set_pp_effector_factor
+-- 2D sound flag (sm_2D = 1); fallback in case a sound_object wrapper hides the enum
+local S2D = (sound_object and sound_object.s2d) or 1
+
+local function log(fmt, ...)
+	printf("[" .. MOD .. "] " .. fmt, ...)
+end
+
+--------------------------------------------------------------------------------
+-- Charged geiger counter check
+--------------------------------------------------------------------------------
+local CACHE_MS = 500
+local cache_value = false
+local cache_until = 0
+
+-- geiger section, resolved once (item_device.device_geiger if defined, like Anti-lag)
+local geiger_sec = "detector_geiger"
+local function is_device_charged(obj, sec)
+	if item_device and item_device.is_device_charged then
+		local ok, res = pcall(item_device.is_device_charged, obj, sec)
+		if ok and res ~= nil then
+			return res and true or false
+		end
+	end
+	-- fallback: charge (condition) above the device's critical power level
+	local critical = SYS_GetParam(2, sec, "power_critical", 0.05) or 0.05
+	return obj:condition() > critical
+end
+
+local function scan_inventory()
+	local actor = db.actor
+	local obj = actor and actor:object(geiger_sec)
+	return obj and is_device_charged(obj, geiger_sec) or false
+end
+
+-- public: true if the player carries a geiger counter with a charged battery
+function has_charged_geiger()
+	local tg = time_global()
+	if tg < cache_until then
+		return cache_value
+	end
+	cache_until = tg + CACHE_MS
+	cache_value = scan_inventory()
+	return cache_value
+end
+
+local DETECTOR_SLOT = 9
+local slot_cache_value = false
+local slot_cache_until = 0
+
+-- true if a charged geiger counter is in the detector slot
+function has_charged_geiger_in_slot()
+	local tg = time_global()
+	if tg < slot_cache_until then
+		return slot_cache_value
+	end
+	slot_cache_until = tg + CACHE_MS
+	slot_cache_value = false
+	local actor = db.actor
+	local obj = actor and actor:item_in_slot(DETECTOR_SLOT)
+	if obj then
+		local sec = obj:section()
+		slot_cache_value = (sec == geiger_sec) and is_device_charged(obj, sec) or false
+	end
+	return slot_cache_value
+end
+
+local function invalidate_cache()
+	cache_until = 0
+	slot_cache_until = 0
+end
+
+--------------------------------------------------------------------------------
+-- DAR Dosimeter Enhanced (optional)
+--------------------------------------------------------------------------------
+-- DAR keeps the dosimeter mode in item_device.dosimeter_env_rads_mode
+-- (true = environment radiation, false = player contamination).
+-- DAR MCM "simple mode" = LMB switches the mode; otherwise LMB runs a self-scan.
+
+-- optional mods: looked up once in on_game_start, not every update
+local has_dar = false
+local has_silent = false
+local has_arszi_rad = false
+local dar_simple = false -- DAR MCM "simple mode", refreshed on option change
+
+local function dar_installed()
+	return has_dar
+end
+
+local function refresh_dar_simple()
+	if not has_dar then dar_simple = false return end
+	local ok, v = pcall(item_geiger_mcm.get_config, "mode")
+	dar_simple = ok and v and true or false
+end
+
+local function dar_simple_mode()
+	return dar_simple
+end
+
+-- returns play_external, play_internal
+local function get_sound_sources()
+	if dar_integration and dar_installed() then
+		if dar_simple_mode() then
+			if item_device.dosimeter_env_rads_mode == false then
+				return false, true -- player contamination mode
+			end
+			return true, false -- environment mode
+		end
+		-- self-scan mode: environment only; DAR plays body clicks during the scan itself
+		return true, false
+	end
+	return snd_external, snd_internal
+end
+
+--------------------------------------------------------------------------------
+-- Geiger ticks + no radiation grain (vanilla actor_effects.Update_Rad)
+--------------------------------------------------------------------------------
+local function get_env_intensity()
+	local env = has_arszi_rad and arszi_radiation.environmental_radiation
+	if type(env) ~= "number" then
+		env = level_get_env_rads() or 0
+	end
+	if env <= 0 then
+		return 0
+	end
+	local reading = env * ENV_READING_SCALE
+	return mmax(ENV_MIN_CHANCE, mmin(1, reading / ENV_READING_MAX))
+end
+
+local ppe_removed = false
+local grain_active = false
+local GRAIN_MIN_FACTOR = 0.01
+
+local function remove_grain()
+	level_remove_ppe(2020)
+	grain_active = false
+end
+
+-- optional film grain: vanilla radiation.ppe, strength = max(own dose, surrounding radiation)
+local function update_grain(actor, env_intensity)
+	if not film_grain then
+		if grain_active or not ppe_removed then
+			remove_grain()
+			ppe_removed = true
+		end
+		return
+	end
+	local factor = mmax(actor and actor.radiation or 0, env_intensity)
+	if factor > GRAIN_MIN_FACTOR then
+		if not grain_active then
+			level_add_ppe("radiation.ppe", 2020, true)
+			grain_active = true
+		end
+		level_set_ppe_factor(2020, mmin(1, factor))
+	elseif grain_active then
+		remove_grain()
+	end
+end
+
+local geiger_snd = {}
+
+local function play_geiger_tick(actor, rad)
+	if actor and mrandom() < rad then
+		local snd_id = (rad > 0.5) and (mrandom() < rad / 1.3) and "click3" or mrandom(8)
+		local snd = geiger_snd[snd_id]
+		if not snd then
+			snd = sound_object("detectors\\geiger_" .. snd_id)
+			geiger_snd[snd_id] = snd
+		end
+		snd:play(actor, 0, S2D)
+	end
+end
+
+local function patch_actor_effects()
+	if not (actor_effects and actor_effects.Update_Rad) then
+		log("actor_effects.Update_Rad not found - vanilla ticks and grain not patched")
+		return
+	end
+
+	-- called by actor_effects at the vanilla rate; replaces the vanilla
+	-- radiation screen effect and ticks
+	actor_effects.Update_Rad = function(actor)
+		-- surrounding radiation is computed at most once per update, only when needed
+		local env = nil
+		if film_grain then
+			env = get_env_intensity()
+		end
+		update_grain(actor, env or 0)
+
+		if has_silent then
+			return
+		end
+		if snd_slot_only then
+			if not has_charged_geiger_in_slot() then return end
+		elseif not has_charged_geiger() then
+			return
+		end
+
+		local play_external, play_internal = get_sound_sources()
+		local rad = 0
+		if play_internal then
+			rad = actor and actor.radiation or 0
+		end
+		if play_external then
+			rad = mmax(rad, env or get_env_intensity())
+		end
+		if rad > 0 then
+			play_geiger_tick(actor, rad)
+		end
+	end
+	log("actor_effects.Update_Rad patched (gated geiger ticks, no radiation grain)")
+end
+
+-- Geiger clicks played by other scripts through utils_obj.play_sound
+-- (e.g. "Geiger panic while gaining rads" from Scrunkly's Collection / Anti-lag):
+-- treated as external radiation clicks and gated by the same rules.
+local function external_click_allowed()
+	if snd_slot_only then
+		if not has_charged_geiger_in_slot() then return false end
+	elseif not has_charged_geiger() then
+		return false
+	end
+	local play_external = get_sound_sources()
+	return play_external and true or false
+end
+
+local function patch_play_sound()
+	if not (utils_obj and utils_obj.play_sound) then
+		log("utils_obj.play_sound not found - other geiger clicks not gated")
+		return
+	end
+	local base_play_sound = utils_obj.play_sound
+	local sfind = string.find
+	utils_obj.play_sound = function(path, ...)
+		if type(path) == "string" and sfind(path, "^detectors[\\/]geiger_") and not external_click_allowed() then
+			return
+		end
+		return base_play_sound(path, ...)
+	end
+	log("utils_obj.play_sound patched (geiger clicks from other scripts need a charged geiger)")
+end
+
+-- optional: Radiation_Overhaul - Silent Radiation
+local function patch_silent_radiation()
+	if geiger_overhaul and geiger_overhaul.check_geiger then
+		geiger_overhaul.check_geiger = function()
+			return has_charged_geiger()
+		end
+		log("Silent Radiation found - its geiger check now uses the charged geiger check")
+	end
+end
+
+--------------------------------------------------------------------------------
+-- SidHUD radiation bar (G.A.M.M.A. Minimalist HUD)
+--------------------------------------------------------------------------------
+local function patch_sidhud()
+	if not (ui_sidhud_mcm and ui_sidhud_mcm.UISidHud and ui_sidhud_mcm.UISidHud.Update) then
+		log("SidHUD not found - radiation bar not patched")
+		return
+	end
+
+	local base_update = ui_sidhud_mcm.UISidHud.Update
+	function ui_sidhud_mcm.UISidHud:Update(force, ...)
+		local res = base_update(self, force, ...)
+		if self.radhealthbar and not has_charged_geiger() then
+			self.radhealthbar:SetProgressPos(0)
+		end
+		return res
+	end
+	log("SidHUD radiation bar patched")
+end
+
+--------------------------------------------------------------------------------
+-- Inventory radiation tooltip: hide exact mSv dose
+--------------------------------------------------------------------------------
+local masking_radia_tooltip = false
+
+local function patch_inventory_tooltip()
+	local cls = ui_inventory and ui_inventory.UIInventory
+	if not (cls and cls.SetStatDescr and cls.FormatStatDescrLine) then
+		log("UI Rework inventory tooltip not found - not patched")
+		return
+	end
+
+	local base_set = cls.SetStatDescr
+	function ui_inventory.UIInventory:SetStatDescr(name, main_st)
+		masking_radia_tooltip = (name == "radia")
+		local ok, res = pcall(base_set, self, name, main_st)
+		masking_radia_tooltip = false
+		if not ok then
+			log("SetStatDescr error: %s", tostring(res))
+			return
+		end
+		return res
+	end
+
+	local base_fmt = cls.FormatStatDescrLine
+	function ui_inventory.UIInventory:FormatStatDescrLine(st, value, unit, idp, prefix, postfix)
+		if masking_radia_tooltip and st == "st_ext_title_radiation" and unit == "st_msv" then
+			local title = base_fmt(self, st, nil, "", idp, "", "")
+			if tooltip_mode == 0 then
+				-- no dose at all: keep only the radiation removal rate of the equipment
+				-- postfix looks like " (-0.50 mSv/s) \n"
+				local rate = postfix and string.match(postfix, "^%s*%((.-)%)%s*\\n$")
+				return (prefix or "") .. title .. (rate and (rate .. " \\n") or (postfix or ""))
+			elseif not has_charged_geiger() then
+				return (prefix or "") .. title .. "???" .. (postfix or "")
+			end
+		end
+		return base_fmt(self, st, value, unit, idp, prefix, postfix)
+	end
+	log("inventory radiation tooltip patched")
+end
+
+--------------------------------------------------------------------------------
+-- HUD radiation status icon
+--------------------------------------------------------------------------------
+local saved_rad_indicator = nil
+
+-- functor for the Radiation indicator: 0 = not shown
+function get_radiation_indicator()
+	if hud_icon_mode == 0 then
+		return 0
+	end
+	if (hud_icon_mode == 3 or hud_icon_mode == 4) and not has_charged_geiger() then
+		return 0
+	end
+	return actor_status.get_radiation(true)
+end
+
+-- G_FLAT's "Msv Above Radiation Icon": number only with a charged geiger
+function msv_allowed()
+	return (hud_icon_mode == 1 or hud_icon_mode == 3) and has_charged_geiger()
+end
+
+local function default_rad_indicator()
+	if alticons then
+		return { index= 1, typ= "state", icon= "ui\\alticons\\StatusRadiation.dds", background= "ui\\alticons\\bg3.dds", anim_icon= true, anim_bk= false }
+	end
+	return { index= 1, typ= "state", icon= "ui_inGame2_booster_rad", background= "ui_inGame2_indicator_slot", anim_icon= true, anim_bk= false }
+end
+
+local function apply_rad_indicator()
+	local ind = actor_status and actor_status.indicators
+	if not ind then return end
+	-- keep the entry always present so the HUD slot count never changes;
+	-- visibility is controlled by the functor
+	if not ind["Radiation"] then
+		ind["Radiation"] = saved_rad_indicator or default_rad_indicator()
+	end
+	ind["Radiation"].functor = { MOD, "get_radiation_indicator" }
+end
+
+local function patch_status_icon()
+	if not (actor_status and actor_status.prepare_indictors_list) then
+		log("actor_status not found - status icon not patched")
+		return
+	end
+
+	if actor_status.indicators and actor_status.indicators["Radiation"] then
+		saved_rad_indicator = actor_status.indicators["Radiation"]
+	end
+
+	local base_prepare = actor_status.prepare_indictors_list
+	actor_status.prepare_indictors_list = function(...)
+		local res = base_prepare(...)
+		apply_rad_indicator()
+		return res
+	end
+	log("radiation status icon patched")
+
+	if msv_over_radiation_status_mcm and msv_over_radiation_status_mcm.eval_geiger_requirement then
+		msv_over_radiation_status_mcm.eval_geiger_requirement = msv_allowed
+		log("G_FLAT msv above icon: shown only with a charged geiger")
+	end
+end
+
+--------------------------------------------------------------------------------
+-- MCM
+--------------------------------------------------------------------------------
+local function get_config(key)
+	if ui_mcm then
+		local v = ui_mcm.get(MCM_ID .. "/" .. key)
+		if v ~= nil then return v end
+	end
+	return defaults[key]
+end
+
+local function apply_options()
+	hud_icon_mode = tonumber(get_config("hud_icon_mode")) or defaults.hud_icon_mode
+	snd_internal = get_config("snd_internal") and true or false
+	snd_external = get_config("snd_external") and true or false
+	snd_slot_only = get_config("snd_slot_only") and true or false
+	dar_integration = get_config("dar_integration") and true or false
+	refresh_dar_simple()
+	local grain_was = film_grain
+	film_grain = get_config("film_grain") and true or false
+	if grain_was and not film_grain and db.actor then
+		remove_grain()
+	end
+	tooltip_mode = tonumber(get_config("tooltip_mode")) or defaults.tooltip_mode
+	local hud = actor_status and actor_status.HUD
+	if hud and hud.Update then
+		pcall(hud.Update, hud, true)
+	end
+end
+
+local function reapply_options()
+	apply_options()
+	return true
+end
+
+function on_option_change()
+	apply_options()
+	-- callback order is not guaranteed: re-read once more shortly after, so a
+	-- stale value from an MCM read cache (e.g. DOGMA perf) cannot stick
+	if db.actor then
+		CreateTimeEvent(MOD, "reapply_options", 0.2, reapply_options)
+	end
+end
+
+-- MCM menu: zzz_rad_geiger_overhaul_mcm.script (MCM only reads *_mcm.script files)
+
+--------------------------------------------------------------------------------
+-- Callbacks
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+-- Save / restore the DAR dosimeter mode (DAR simple mode only)
+-- Stores one boolean in this mod's own save data table; ignored if the mod
+-- or DAR is removed later.
+--------------------------------------------------------------------------------
+local saved_dar_env = nil
+
+local function save_state(m_data)
+	if dar_installed() and item_device.dosimeter_env_rads_mode ~= nil then
+		m_data.rad_geiger_overhaul = m_data.rad_geiger_overhaul or {}
+		m_data.rad_geiger_overhaul.dar_env = item_device.dosimeter_env_rads_mode and true or false
+	end
+end
+
+local function load_state(m_data)
+	saved_dar_env = nil -- never carry a mode over from a previously loaded save
+	local t = m_data.rad_geiger_overhaul
+	if t and t.dar_env ~= nil then
+		saved_dar_env = t.dar_env
+	end
+end
+
+local function restore_dar_mode()
+	if saved_dar_env ~= nil and dar_installed() and dar_simple_mode() then
+		item_device.dosimeter_env_rads_mode = saved_dar_env
+		log("DAR dosimeter mode restored: %s", saved_dar_env and "environment" or "player contamination")
+	end
+	return true
+end
+
+local function actor_on_first_update()
+	apply_options()
+	invalidate_cache()
+	ppe_removed = false
+	remove_grain()
+	if saved_dar_env ~= nil and dar_installed() then
+		-- after DAR's own actor_on_first_update
+		CreateTimeEvent(MOD, "restore_dar_mode", 1, restore_dar_mode)
+	end
+end
+
+local function resolve_optional_mods()
+	-- geiger section from items\settings\devices.ltx [settings] geiger (same as GAMMA's geiger panic script)
+	local ok, sec = pcall(function()
+		return ini_file("items\\settings\\devices.ltx"):r_sec_ex("settings", "geiger", "detector_geiger")
+	end)
+	if ok and sec and sec ~= "" then
+		geiger_sec = sec
+	elseif item_device and item_device.device_geiger then
+		geiger_sec = item_device.device_geiger
+	end
+	has_dar = (item_geiger_mcm and item_geiger_mcm.get_config and item_device) and true or false
+	has_silent = (geiger_overhaul and geiger_overhaul.check_geiger) and true or false
+	-- field is read at runtime: it may still be nil while scripts are starting
+	has_arszi_rad = (arszi_radiation ~= nil) and true or false
+	log("geiger section: %s | DAR: %s | Silent Radiation: %s", geiger_sec, tostring(has_dar), tostring(has_silent))
+end
+
+function on_game_start()
+	resolve_optional_mods()
+	patch_actor_effects()
+	patch_play_sound()
+	patch_silent_radiation()
+	patch_sidhud()
+	patch_inventory_tooltip()
+	patch_status_icon()
+
+	RegisterScriptCallback("actor_on_first_update", actor_on_first_update)
+	RegisterScriptCallback("save_state", save_state)
+	RegisterScriptCallback("load_state", load_state)
+	RegisterScriptCallback("on_option_change", on_option_change)
+	RegisterScriptCallback("actor_on_item_take", invalidate_cache)
+	RegisterScriptCallback("actor_on_item_drop", invalidate_cache)
+	RegisterScriptCallback("actor_on_item_use", invalidate_cache)
+	RegisterScriptCallback("actor_item_to_slot", invalidate_cache)
+	RegisterScriptCallback("actor_item_to_ruck", invalidate_cache)
+end

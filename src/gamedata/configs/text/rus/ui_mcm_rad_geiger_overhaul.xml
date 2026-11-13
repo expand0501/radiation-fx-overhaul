@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="windows-1251"?>
+
+<string_table>
+	<string id="ui_mcm_menu_rad_geiger_overhaul">
+		<text>Переработка эффектов радиации</text>
+	</string>
+	<string id="ui_mcm_rad_geiger_overhaul_title">
+		<text>Переработка эффектов радиации</text>
+	</string>
+	<string id="ui_mcm_rad_geiger_overhaul_desc">
+		<text>Щелчки дозиметра и шкала радиации на HUD работают, только если в инвентаре есть заряженный дозиметр. Без зернистости от радиации (можно включить ниже). Подсказка в инвентаре скрывает точную дозу (настройка ниже).</text>
+	</string>
+	<string id="ui_mcm_rad_geiger_overhaul_hud_icon_mode">
+		<text>Значок радиации на HUD</text>
+	</string>
+	<string id="ui_mcm_rad_geiger_overhaul_hud_icon_mode_desc">
+		<text>Скрыт: значка радиации на HUD нет. Показан, мЗв с дозиметром: значок меняет цвет по уровню облучения, значение в мЗв над ним видно только с заряженным дозиметром. Показан, без мЗв: значок без значения. Только с дозиметром: без заряженного дозиметра значка нет, с ним видны значок и мЗв. Только с дозиметром, без мЗв: значок только с заряженным дозиметром, значение не показывается.</text>
+	</string>
+	<string id="ui_mcm_lst_rad_geiger_overhaul_icon_hidden">
+		<text>Скрыт</text>
+	</string>
+	<string id="ui_mcm_lst_rad_geiger_overhaul_icon_msv_geiger">
+		<text>Показан, мЗв с дозиметром</text>
+	</string>
+	<string id="ui_mcm_lst_rad_geiger_overhaul_icon_no_msv">
+		<text>Показан, без мЗв</text>
+	</string>
+	<string id="ui_mcm_lst_rad_geiger_overhaul_icon_geiger_only">
+		<text>Только с дозиметром</text>
+	</string>
+	<string id="ui_mcm_rad_geiger_overhaul_tooltip_mode">
+		<text>Подсказка радиации в инвентаре</text>
+	</string>
+	<string id="ui_mcm_rad_geiger_overhaul_tooltip_mode_desc">
+		<text>Подсказка радиации в инвентаре (UI Rework G.A.M.M.A. Style). Всегда скрыта: текущая доза (мЗв) убрана, скорость выведения радиации снаряжением остаётся. Видна с дозиметром: без заряженного дозиметра "???", с ним настоящая доза.</text>
+	</string>
+	<string id="ui_mcm_lst_rad_geiger_overhaul_tooltip_always_hidden">
+		<text>Всегда скрыта</text>
+	</string>
+	<string id="ui_mcm_lst_rad_geiger_overhaul_tooltip_geiger">
+		<text>Видна с дозиметром</text>
+	</string>
+	<string id="ui_mcm_rad_geiger_overhaul_sources_title">
+		<text>Источники щелчков дозиметра</text>
+	</string>
+	<string id="ui_mcm_rad_geiger_overhaul_snd_internal">
+		<text>Щелчки от внутреннего облучения</text>
+	</string>
+	<string id="ui_mcm_rad_geiger_overhaul_snd_internal_desc">
+		<text>Щелчки дозиметра от собственного облучения (доза в организме).</text>
+	</string>
+	<string id="ui_mcm_rad_geiger_overhaul_snd_external">
+		<text>Щелчки от внешней радиации</text>
+	</string>
+	<string id="ui_mcm_rad_geiger_overhaul_snd_external_desc">
+		<text>Щелчки дозиметра от радиации вокруг, пока вы в радиационном поле.</text>
+	</string>
+	<string id="ui_mcm_rad_geiger_overhaul_snd_slot_only">
+		<text>Только с дозиметром в слоте детектора</text>
+	</string>
+	<string id="ui_mcm_rad_geiger_overhaul_snd_slot_only_desc">
+		<text>Щелчки только когда заряженный дозиметр в слоте детектора, а не где угодно в инвентаре. Влияет только на звук.</text>
+	</string>
+	<string id="ui_mcm_rad_geiger_overhaul_dar_integration">
+		<text>Совместимость с DAR Dosimeter Enhanced</text>
+	</string>
+	<string id="ui_mcm_rad_geiger_overhaul_dar_integration_desc">
+		<text>Только если установлен DAR Dosimeter Enhanced. Заменяет галочки внутреннего/внешнего: режим окружения = щелчки от окружения, режим заражения = щелчки от облучения тела, режим самопроверки = щелчки от окружения (от тела только во время самопроверки). Режим дозиметра сохраняется вместе с игрой.</text>
+	</string>
+	<string id="ui_mcm_rad_geiger_overhaul_author">
+		<text>Автор: Expand</text>
+	</string>
+	<string id="ui_mcm_rad_geiger_overhaul_film_grain">
+		<text>Зернистость</text>
+	</string>
+	<string id="ui_mcm_rad_geiger_overhaul_film_grain_desc">
+		<text>Зернистость на экране от радиации. Сила зависит от собственного облучения и радиации вокруг. По умолчанию выключена. С модом Grain RGB &amp; Psi Color Effects Remover эффекта не видно.</text>
+	</string>
+	<string id="ui_mcm_lst_rad_geiger_overhaul_icon_geiger_no_msv">
+		<text>Только с дозиметром, без мЗв</text>
+	</string>
+</string_table>

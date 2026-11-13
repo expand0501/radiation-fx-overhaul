@@ -1,0 +1,32 @@
+--------------------------------------------------------------------------------
+-- Radiation FX Overhaul by Expand - MCM menu
+-- MCM only builds menus from scripts named *_mcm.script.
+-- Settings are read by zzz_rad_geiger_overhaul.script.
+--------------------------------------------------------------------------------
+
+function on_mcm_load()
+	return {
+		id = "rad_geiger_overhaul", sh = true, gr = {
+			{ id = "title", type = "slide", link = "ui_options_slider_radio", text = "ui_mcm_rad_geiger_overhaul_title", size = {512, 50}, spacing = 20 },
+			{ id = "author", type = "desc", text = "ui_mcm_rad_geiger_overhaul_author", clr = {255, 160, 160, 160} },
+			{ id = "desc", type = "desc", text = "ui_mcm_rad_geiger_overhaul_desc" },
+			{ id = "hud_icon_mode", type = "list", val = 2, def = 1, content = {
+				{ 0, "rad_geiger_overhaul_icon_hidden" },
+				{ 1, "rad_geiger_overhaul_icon_msv_geiger" },
+				{ 2, "rad_geiger_overhaul_icon_no_msv" },
+				{ 3, "rad_geiger_overhaul_icon_geiger_only" },
+				{ 4, "rad_geiger_overhaul_icon_geiger_no_msv" },
+			} },
+			{ id = "tooltip_mode", type = "list", val = 2, def = 1, content = {
+				{ 0, "rad_geiger_overhaul_tooltip_always_hidden" },
+				{ 1, "rad_geiger_overhaul_tooltip_geiger" },
+			} },
+			{ id = "film_grain", type = "check", val = 1, def = false },
+			{ id = "sources_title", type = "title", text = "ui_mcm_rad_geiger_overhaul_sources_title", align = "l", clr = {255, 200, 200, 200} },
+			{ id = "snd_internal", type = "check", val = 1, def = true },
+			{ id = "snd_external", type = "check", val = 1, def = true },
+			{ id = "snd_slot_only", type = "check", val = 1, def = false },
+			{ id = "dar_integration", type = "check", val = 1, def = true },
+		}
+	}
+end

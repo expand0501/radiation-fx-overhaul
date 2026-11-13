@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="windows-1251"?>
+
+<string_table>
+	<string id="ui_mcm_menu_rad_geiger_overhaul">
+		<text>Radiation FX Overhaul</text>
+	</string>
+	<string id="ui_mcm_rad_geiger_overhaul_title">
+		<text>Radiation FX Overhaul</text>
+	</string>
+	<string id="ui_mcm_rad_geiger_overhaul_desc">
+		<text>Geiger ticks and the HUD radiation bar work only with a charged geiger counter in your inventory. No radiation grain (optional film grain below). The inventory tooltip hides the exact dose (MCM option).</text>
+	</string>
+	<string id="ui_mcm_rad_geiger_overhaul_hud_icon_mode">
+		<text>HUD radiation status icon</text>
+	</string>
+	<string id="ui_mcm_rad_geiger_overhaul_hud_icon_mode_desc">
+		<text>Hidden: no radiation icon on the HUD. Shown, mSv with geiger: the icon changes color with exposure; the mSv value above it appears only while you carry a charged geiger counter. Shown, no mSv: icon without the value. Only with geiger: no icon without a charged geiger counter; with one, icon and mSv value. Only with geiger, no mSv: icon only with a charged geiger counter, never the value.</text>
+	</string>
+	<string id="ui_mcm_lst_rad_geiger_overhaul_icon_hidden">
+		<text>Hidden</text>
+	</string>
+	<string id="ui_mcm_lst_rad_geiger_overhaul_icon_msv_geiger">
+		<text>Shown, mSv with geiger</text>
+	</string>
+	<string id="ui_mcm_lst_rad_geiger_overhaul_icon_no_msv">
+		<text>Shown, no mSv</text>
+	</string>
+	<string id="ui_mcm_lst_rad_geiger_overhaul_icon_geiger_only">
+		<text>Only with geiger</text>
+	</string>
+	<string id="ui_mcm_rad_geiger_overhaul_tooltip_mode">
+		<text>Inventory radiation tooltip</text>
+	</string>
+	<string id="ui_mcm_rad_geiger_overhaul_tooltip_mode_desc">
+		<text>Radiation tooltip in the inventory (UI Rework G.A.M.M.A. Style). Always hidden: the current dose (mSv) is removed; the radiation removal rate of your gear stays. Shown with geiger: "???" without a charged geiger counter, the real dose with one.</text>
+	</string>
+	<string id="ui_mcm_lst_rad_geiger_overhaul_tooltip_always_hidden">
+		<text>Always hidden</text>
+	</string>
+	<string id="ui_mcm_lst_rad_geiger_overhaul_tooltip_geiger">
+		<text>Shown with geiger</text>
+	</string>
+	<string id="ui_mcm_rad_geiger_overhaul_sources_title">
+		<text>Radiation Geiger Sound Sources</text>
+	</string>
+	<string id="ui_mcm_rad_geiger_overhaul_snd_internal">
+		<text>Play for internal radiation</text>
+	</string>
+	<string id="ui_mcm_rad_geiger_overhaul_snd_internal_desc">
+		<text>Geiger clicks for your own irradiation (dose in the body).</text>
+	</string>
+	<string id="ui_mcm_rad_geiger_overhaul_snd_external">
+		<text>Play for external radiation</text>
+	</string>
+	<string id="ui_mcm_rad_geiger_overhaul_snd_external_desc">
+		<text>Geiger clicks for surrounding radiation while you stand in a radiation field.</text>
+	</string>
+	<string id="ui_mcm_rad_geiger_overhaul_snd_slot_only">
+		<text>Only with geiger in detector slot</text>
+	</string>
+	<string id="ui_mcm_rad_geiger_overhaul_snd_slot_only_desc">
+		<text>Clicks only when the charged geiger counter is in the detector slot, not just anywhere in the inventory. Affects sound only.</text>
+	</string>
+	<string id="ui_mcm_rad_geiger_overhaul_dar_integration">
+		<text>DAR Dosimeter Enhanced integration</text>
+	</string>
+	<string id="ui_mcm_rad_geiger_overhaul_dar_integration_desc">
+		<text>Only with DAR Dosimeter Enhanced installed. Overrides the internal/external checkboxes: environment mode = environment clicks, contamination mode = body clicks, self-scan mode = environment clicks (body clicks only during the self-scan). The dosimeter mode is saved with the game.</text>
+	</string>
+	<string id="ui_mcm_rad_geiger_overhaul_author">
+		<text>Author: Expand</text>
+	</string>
+	<string id="ui_mcm_rad_geiger_overhaul_film_grain">
+		<text>Film grain</text>
+	</string>
+	<string id="ui_mcm_rad_geiger_overhaul_film_grain_desc">
+		<text>Radiation film grain on screen. Strength follows your own dose and the radiation around you. Off by default. Has no visible effect with Grain RGB &amp; Psi Color Effects Remover installed.</text>
+	</string>
+	<string id="ui_mcm_lst_rad_geiger_overhaul_icon_geiger_no_msv">
+		<text>Only with geiger, no mSv</text>
+	</string>
+</string_table>

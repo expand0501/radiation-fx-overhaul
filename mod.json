@@ -1,0 +1,9 @@
+{
+  "name": "Radiation FX Overhaul by Expand",
+  "version": "2.1.1",
+  "zip": "Radiation FX Overhaul by Expand {version}",
+  "versionFiles": [
+    "src/readme.md",
+    "src/gamedata/scripts/zzz_rad_geiger_overhaul.script"
+  ]
+}
