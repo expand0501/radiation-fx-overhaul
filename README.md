@@ -34,6 +34,11 @@ Changes per version: [`CHANGELOG.md`](CHANGELOG.md).
 Open an [issue](https://github.com/expand0501/radiation-fx-overhaul/issues) with the lines starting with
 `[zzz_rad_geiger_overhaul]` from `Anomaly\appdata\logs\xray_*.log` and describe what you saw.
 
+## License
+
+[CC BY-NC-SA 4.0](LICENSE): you may share and change this mod, including in modpacks, if you credit Expand,
+do not use it commercially and keep the same license.
+
 ---
 
 ## Русский
@@ -69,3 +74,8 @@ Open an [issue](https://github.com/expand0501/radiation-fx-overhaul/issues) with
 
 Создайте [issue](https://github.com/expand0501/radiation-fx-overhaul/issues), приложите строки, начинающиеся с
 `[zzz_rad_geiger_overhaul]`, из `Anomaly\appdata\logs\xray_*.log` и опишите, что произошло.
+
+### Лицензия
+
+[CC BY-NC-SA 4.0](LICENSE): мод можно распространять и изменять, в том числе включать в сборки, если указать
+автора (Expand), не использовать его в коммерческих целях и сохранить ту же лицензию.
