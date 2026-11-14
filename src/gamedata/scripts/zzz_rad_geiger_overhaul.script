@@ -1,5 +1,5 @@
 --------------------------------------------------------------------------------
--- Radiation FX Overhaul by Expand  v2.1.1  (for G.A.M.M.A.)
+-- Radiation FX Overhaul by Expand  v2.1.2  (for G.A.M.M.A.)
 --
 -- Standalone, no other radiation mod required:
 -- 1. Geiger ticks only with a charged geiger counter anywhere in the inventory.
@@ -25,7 +25,9 @@
 -- 7. Geiger clicks from other scripts played through utils_obj.play_sound
 --    (GAMMA's "Geiger panic while gaining rads", Anti-lag's copy of it) count
 --    as external radiation clicks: charged geiger required, detector slot
---    setting and external / DAR environment mode respected.
+--    setting and external / DAR environment mode respected. The clicks each
+--    radioactive field plays itself (engine HUD zone list, _G.CZone_Touch)
+--    follow the same rules.
 --
 -- Optional compatibility (no dependency): DAR Dosimeter Enhanced, Radiation_Overhaul - Silent
 -- Radiation, G_FLAT's Msv Above Radiation Icon, Grain RGB & Psi Color Effects
@@ -308,6 +310,45 @@ local function patch_play_sound()
 	log("utils_obj.play_sound patched (geiger clicks from other scripts need a charged geiger)")
 end
 
+-- Radiation field clicks: the engine's HUD zone list (UIHudStatesWnd) plays each
+-- radioactive field's own detect sound after asking _G.CZone_Touch, which sends
+-- actor_on_feeling_anomaly. These are environment clicks too: same gate as above,
+-- so DAR player contamination mode / internal-only / slot-only silence them.
+-- Wrapping CZone_Touch (not the callback) keeps the result independent of
+-- callback order; base GAMMA's Nitpickers GeigerHush wraps it the same way.
+local rad_zone_cache = {} -- zone section -> true if it deals radiation
+local function is_rad_zone(obj)
+	local sec = obj:section()
+	local v = rad_zone_cache[sec]
+	if v == nil then
+		v = (SYS_GetParam(0, sec, "hit_type", "") == "radiation")
+		rad_zone_cache[sec] = v
+	end
+	return v
+end
+
+local function gate_zone_touch(obj, allowed, ...)
+	if allowed and obj and is_rad_zone(obj) and not external_click_allowed() then
+		return false, ...
+	end
+	return allowed, ...
+end
+
+local zone_touch_patched = false
+local function patch_zone_touch()
+	if zone_touch_patched then return end
+	local base_zone_touch = _G.CZone_Touch
+	if type(base_zone_touch) ~= "function" then
+		log("CZone_Touch not found - radiation field clicks not gated")
+		return
+	end
+	_G.CZone_Touch = function(obj, ...)
+		return gate_zone_touch(obj, base_zone_touch(obj, ...))
+	end
+	zone_touch_patched = true
+	log("CZone_Touch patched (radiation field clicks follow the environment click rules)")
+end
+
 -- optional: Radiation_Overhaul - Silent Radiation
 local function patch_silent_radiation()
 	if geiger_overhaul and geiger_overhaul.check_geiger then
@@ -554,6 +595,7 @@ function on_game_start()
 	resolve_optional_mods()
 	patch_actor_effects()
 	patch_play_sound()
+	patch_zone_touch()
 	patch_silent_radiation()
 	patch_sidhud()
 	patch_inventory_tooltip()

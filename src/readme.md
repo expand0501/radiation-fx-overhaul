@@ -1,4 +1,4 @@
-**Radiation FX Overhaul by Expand 2.1.1**
+**Radiation FX Overhaul by Expand 2.1.2**
 
 For S.T.A.L.K.E.R. Anomaly G.A.M.M.A. Author: Expand
 
@@ -13,7 +13,7 @@ Standalone: needs no other radiation mod.
    - DAR Dosimeter Enhanced integration (default on, used only if DAR is installed): overrides internal/external.
      Environment mode = environment clicks; contamination mode = body clicks; DAR self-scan mode = environment clicks (DAR plays body clicks during the self-scan).
      The DAR dosimeter mode is saved with the game and restored on load (one value in this mod's save data; harmless if the mod or DAR is removed later).
-   Geiger clicks from other scripts (G.A.M.M.A.'s "Geiger panic while gaining rads" from Scrunkly's Collection, and Anti-lag's copy of it) count as external radiation clicks: they need a charged geiger counter, follow the detector slot setting, and play only with "Play for external radiation" on or in DAR's environment mode.
+   Geiger clicks from other scripts (G.A.M.M.A.'s "Geiger panic while gaining rads" from Scrunkly's Collection, and Anti-lag's copy of it) count as external radiation clicks: they need a charged geiger counter, follow the detector slot setting, and play only with "Play for external radiation" on or in DAR's environment mode. The same goes for the clicks a radiation field plays itself when you walk into or near it.
 2. No radiation grain on screen (vanilla radiation effect and radioactive zone post-process).
    MCM "Film grain" (off by default): brings back the radiation film grain; its strength follows your own dose and the radiation around you. With Grain RGB & Psi Color Effects Remover installed the grain is invisible, because that mod blanks the effect.
 3. The HUD radiation bar (SidHUD bar from G.A.M.M.A. Minimalist HUD) shows 0 without a charged geiger counter.
